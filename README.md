@@ -5,6 +5,7 @@
 [![Backend](https://img.shields.io/badge/solver-C%20%2B%20NumPy-blue)](#)
 [![Edge](https://img.shields.io/badge/edge--ready-Raspberry%20Pi-green)](#)
 [![Offline](https://img.shields.io/badge/network-optional-success)](#)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://offgrid-excavator-digital-twin-h769shvqfo6g6bp3goxddt.streamlit.app/)
 
 ---
 
