@@ -34,7 +34,57 @@ from src.core.stress_solver import (
 from src.core.fatigue_demo import simulate_load_history
 from src.edge.local_db import LocalDB
 from src.edge.sync import FileTransport, SyncEngine
+import os
+import subprocess
 
+@st.cache_resource(show_spinner=False)
+def _ensure_virtual_display():
+    """
+    On headless Linux (Streamlit Community Cloud), VTK needs an X server
+    to open an off-screen render window. There isn't one, so we start
+    Xvfb ourselves and point DISPLAY at it.
+
+    Cached with `st.cache_resource`, so exactly one Xvfb process runs per
+    Streamlit server process, regardless of reruns or connected users.
+    Returns the Popen handle (kept alive by the cache) or None.
+    """
+    if sys.platform != "linux":
+        return None
+    if os.environ.get("DISPLAY"):
+        return None
+
+    display = ":99"
+
+    # Reuse an existing Xvfb if one survived a hot reload.
+    try:
+        check = subprocess.run(
+            ["pgrep", "-f", f"Xvfb {display}"],
+            capture_output=True,
+        )
+        if check.returncode == 0:
+            os.environ["DISPLAY"] = display
+            return None
+    except FileNotFoundError:
+        pass
+
+    try:
+        proc = subprocess.Popen(
+            ["Xvfb", display,
+             "-screen", "0", "1280x800x24",
+             "-nolisten", "tcp"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except FileNotFoundError:
+        # Xvfb binary missing — packages.txt not applied yet.
+        return None
+
+    time.sleep(1.5)          # let Xvfb bind its socket before VTK connects
+    if proc.poll() is not None:
+        return None          # Xvfb died; leave DISPLAY unset so VTK errors clearly
+
+    os.environ["DISPLAY"] = display
+    return proc
 
 # ------------------------------------------------------------------ #
 # Configuration
@@ -230,6 +280,7 @@ def main() -> None:
         layout="wide",
         initial_sidebar_state="expanded"
     )
+    _ensure_virtual_display()
     _init_state()
 
     db: LocalDB = st.session_state.db
