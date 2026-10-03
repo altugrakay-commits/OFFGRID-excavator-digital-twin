@@ -2,9 +2,9 @@
 
 > **Physics-informed structural health monitoring for remote construction equipment — designed to run entirely offline on a Raspberry Pi in the machine's cab.**
 
-[![Backend](https://img.shields.io/badge/solver-C%20%2B%20NumPy-blue)]()
-[![Edge](https://img.shields.io/badge/edge--ready-Raspberry%20Pi-green)]()
-[![Offline](https://img.shields.io/badge/network-optional-success)]()
+[![Backend](https://img.shields.io/badge/solver-C%20%2B%20NumPy-blue)](#)
+[![Edge](https://img.shields.io/badge/edge--ready-Raspberry%20Pi-green)](#)
+[![Offline](https://img.shields.io/badge/network-optional-success)](#)
 
 ---
 
@@ -31,41 +31,44 @@ A **physics-informed digital twin** that runs entirely on an edge device in the 
 No new sensors. No cloud dependency for core functionality. Same code runs on a laptop, a Raspberry Pi 4, or an NVIDIA Jetson.
 
 ## Architecture
-┌───────────────────────────────────────────────────────────────────────┐
-│ SENSOR LAYER │ hydraulic pressure │ boom angle │ vibration │ oil temp │
-└────────────────────────┬──────────────────────────────────────────────┘
-                        │ 10 Hz
-                        ▼
-┌─────────────────────────────────────────────────────────────────┐
-│ PHYSICS CORE (C shared library + NumPy fallback) │
-│ │
-│ geometry.py ──▶ stress_solver (libstress) ──▶ fatigue (Miner) │
-│ tapered boom Von Mises σ_vm(x,y,z) Basquin + Goodman
-└────────────────────────┬────────────────────────────────────────┘
-│
-▼
-┌─────────────────────────────────────────────────────────────────┐
-│ LOCAL-FIRST DATA LAYER (SQLite, WAL mode) │
-│ telemetry_samples │ stress_snapshots │ fatigue_state │
-│ all rows carry a synced flag — the offline queue │
-└────────────────────────┬────────────────────────────────────────┘
-│
-┌────────────────┼────────────────┐
-▼ ▼ ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Streamlit │ │ Sync engine │ │ Spool files │
-│ dashboard │ │ (drains │ │ (JSONL, │
-│ (in-cab UI) │ │ synced=0)│ │ auditable) │
-└──────────────┘ └──────────────┘ └──────────────┘
-│
-│ (when online)
-▼
-┌──────────────┐
-│ Cloud API │
-│ (fleet │
-│ analytics) │
-└──────────────┘
 
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│  SENSOR LAYER                                                     │
+│  hydraulic pressure │ boom angle │ vibration │ oil temp           │
+└────────────────────────┬──────────────────────────────────────────┘
+                         │  10 Hz
+                         ▼
+┌───────────────────────────────────────────────────────────────────┐
+│  PHYSICS CORE  (C shared library + NumPy fallback)                │
+│                                                                   │
+│  geometry.py ──▶ stress_solver (libstress) ──▶ fatigue (Miner)   │
+│   tapered boom     Von Mises σ_vm(x,y,z)        Basquin + Goodman │
+└────────────────────────┬──────────────────────────────────────────┘
+                         │
+                         ▼
+┌───────────────────────────────────────────────────────────────────┐
+│  LOCAL-FIRST DATA LAYER  (SQLite, WAL mode)                       │
+│  telemetry_samples │ stress_snapshots │ fatigue_state             │
+│  all rows carry a `synced` flag — the offline queue               │
+└────────────────────────┬──────────────────────────────────────────┘
+                         │
+        ┌────────────────┼────────────────┐
+        ▼                ▼                ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│  Streamlit   │ │  Sync engine │ │  Spool files │
+│  dashboard   │ │  (drains     │ │  (JSONL,     │
+│  (in-cab UI) │ │   synced=0)  │ │   auditable) │
+└──────────────┘ └──────────────┘ └──────────────┘
+                         │
+                         │  (when online)
+                         ▼
+                  ┌──────────────┐
+                  │  Cloud API   │
+                  │  (fleet      │
+                  │   analytics) │
+                  └──────────────┘
+```
 
 ## Quickstart
 
@@ -135,7 +138,11 @@ DSL_OFFGRID/
 │   ├── run_telemetry_demo.py  # Data-layer smoke test
 │   └── run_sync_demo.py       # Offline→online demo
 ├── tests/                     # pytest suite
+├── data/                      # Sample meshes and reference data
+├── Videos/                    # Demo recordings
 ├── build.py                   # Cross-platform C build
+├── config.yaml                # Tunable parameters
+├── conftest.py                # Pytest path configuration
 ├── requirements.txt
 └── README.md
 ```
@@ -150,12 +157,13 @@ Three concrete properties, not marketing:
 
 3. **The sync queue is durable across restarts.** SQLite's WAL mode means a power cut cannot lose more than one in-flight transaction.
 
-## Deployment on Read Hardware
+## Deployment on Real Hardware
 
 ```bash
 # On a Raspberry Pi 4 running Raspberry Pi OS 64-bit:
 sudo apt install gcc python3-pip
-git clone <this-repo> && cd DSL_OFFGRID
+git clone https://github.com/altugrakay-commits/OFFGRID-excavator-digital-twin.git
+cd OFFGRID-excavator-digital-twin
 pip install -r requirements.txt
 python build.py
 streamlit run src/edge/dashboard.py --server.address=0.0.0.0 --server.port=8501
@@ -163,7 +171,7 @@ streamlit run src/edge/dashboard.py --server.address=0.0.0.0 --server.port=8501
 
 ### Docker (optional)
 
-A `Dockerfile` and `docker-compose.yml` are included for reproducibility. On systems where hardware virtualization cannot be enabled (common on locked-down corporate laptops), the same stack runs natively with the steps above — no container required. The container adds no functionality; it only packages the runtime.
+A `Dockerfile` and `dockerignore`is included for reproducibility. On systems where hardware virtualization cannot be enabled (common on locked-down corporate laptops), the same stack runs natively with the steps above — no container required. The container adds no functionality; it only packages the runtime.
 
 The operator's tablet connects to the same local Wi-Fi hotspot and opens `http://<pi-ip>:8501`. The Pi's cellular modem (or manual sync at the site office) drains the queue when a link appears.
 
