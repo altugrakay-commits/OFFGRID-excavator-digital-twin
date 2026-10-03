@@ -1,0 +1,1 @@
+# Rainbow counting + Miner's rule to accumulate damage.
